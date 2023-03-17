@@ -1,10 +1,10 @@
 
 let canvx=innerWidth;
 let canvy=innerHeight/2+innerHeight*.1;
-let numGrains = 40;
+let numGrains = 25;
 let spring = 0.07;
 let max_speed=3;
-let friction = -0.09;
+let friction = -0.1;
 let d=70;
 let grains=[];
 let fr=60;
@@ -13,10 +13,26 @@ function setup() {
   canvas.parent('top');
   frameRate(fr);
   background(80);
-  strokeWeight(0.5)
-  stroke("white")
-    for (i=0; i<numGrains;i++){
-    grains[i]= new Grain(random(canvx),random(canvy),random(d-d/2,d),i,grains);}
+  noStroke()
+  let i=0
+    while(i<numGrains){
+      let nx=random(canvx);
+      let ny=random(canvy);
+      let nw=random(d-d/2,d)
+      let set=1;
+      for (let j = 0; j < i; j++) {
+        // console.log(others[i]);
+        let dx = grains[j].x - nx;
+        let dy = grains[j].y - ny;
+        let distance = sqrt(dx * dx + dy * dy);
+        let minDist = grains[j].diameter  + nw;
+        if(distance<minDist)
+          set=0;
+      }
+      if(set==1){
+      grains[i]= new Grain(nx,ny,nw,i,grains);
+      i+=1;}
+    }
 }
 
 
@@ -29,11 +45,13 @@ class Grain {
     this.diameter = din;
     this.id = idin;
     this.others = oin;
+  
     this.fill=[100,200];
     // 100, 200
     
     
   }
+
   collide() {
     for (let i = this.id + 1; i < numGrains; i++) {
       // console.log(others[i]);
@@ -63,12 +81,14 @@ class Grain {
   }
 
   move() {
+    console.log(this.lock)
       
-    if (abs(mouseX-this.x)<= this.diameter/2 +3 & abs(mouseY-this.y)<=this.diameter/2 +3 & abs(mouseX-pmouseX+abs(mouseY-pmouseY))>1){
+    if (abs(mouseX-this.x)<= this.diameter/2 +3 & abs(mouseY-this.y)<=this.diameter/2 +3 & abs(mouseX-pmouseX+abs(mouseY-pmouseY))>max_speed ){
       this.vx=mouseX - pmouseX;
       this.vy=mouseY - pmouseY;
+     
     }
-    
+
     if (this.vx < 0)
     this.x += max(this.vx,-max_speed);
     else
