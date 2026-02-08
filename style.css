@@ -1,6 +1,6 @@
 body{
-    margin-top:0px;
-    padding-top:0x;
+    margin:0px;
+    padding:0px;
     overflow: hidden; /* Hide scrollbars */
 }
 /* #top{
@@ -84,8 +84,8 @@ body{
     /* box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); */
     padding: 30px;
     
-    max-width: 65%;
-    margin: 20 auto;
+  max-width: 65%;
+  margin: 20px auto;
     font-size: 18px; /* Make the font size larger */
     line-height: 1.5; /* Add proper line spacing */
     letter-spacing: 0.05em; /* Add a little letter spacing */
