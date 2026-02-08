@@ -32,13 +32,17 @@ let satelliteDeathBehavior = 'debris';
 
 
 function setup() {
+  // Responsive canvas sizing for mobile/desktop
+  canvx = windowWidth;
+  canvy = Math.floor(windowHeight * 0.6);
   let canvas = createCanvas(canvx, canvy);
   canvas.parent('top');
-  // Prevent right-click context menu on the canvas
   canvas.elt.addEventListener('contextmenu', function(e) { e.preventDefault(); });
   frameRate(fr);
   noStroke();
-  // Create a much larger starfield background
+  // Responsive starfield
+  starfieldW = windowWidth * 3;
+  starfieldH = Math.floor(windowHeight * 0.6) * 3;
   starfield = createGraphics(starfieldW, starfieldH);
   starfield.background(10, 12, 30);
   for (let i = 0; i < 800; i++) {
@@ -50,37 +54,30 @@ function setup() {
     starfield.noStroke();
     starfield.fill(b, b, 255, a);
     starfield.ellipse(x, y, r, r);
-    // occasional colored stars
     if (random() < 0.08) {
       let c = color(random(180,255), random(180,255), random(200,255), a);
       starfield.fill(c);
       starfield.ellipse(x, y, r * 1.2, r * 1.2);
     }
   }
-  // set central gravity center to canvas center
   centerX = width / 2;
   centerY = height / 2;
-  // create rotating planets that orbit the central gravity center
   for (let i = 0; i < numPlanets; i++) {
-    const orbitR = 80 + i * 90; // spread planets outward
+    const orbitR = 80 + i * 90;
     const angle = random(TWO_PI);
-    // slower planet angular speeds for calmer motion
     const speed = random(0.002, 0.008) * (i % 2 ? 1 : -1);
     const size = 12 + i * 4;
     const col = [map(i, 0, numPlanets - 1, 120, 255), 180, map(i, 0, numPlanets - 1, 200, 100)];
     planets.push(new Planet(centerX, centerY, orbitR, angle, speed, size, col));
   }
-  // create a handful of satellites orbiting random planets
   for (let i = 0; i < initialSatellites; i++) {
     const p = random(planets);
     const satR = p.size + 12 + random(8, 60);
     const a = random(TWO_PI);
-    // slower satellite speeds
     const spd = random(0.005, 0.03) * (random() > 0.5 ? 1 : -1);
     const s = 4 + random(0, 3);
     satellites.push(new Satellite(p, satR, a, spd, s));
   }
-  // Dynamically set minimum zoom so the background always covers the canvas
   updateZoomMin();
 }
 
@@ -282,12 +279,34 @@ function mousePressed() {
 
 
 
-// Resize handler to keep canvas responsive on mobile/desktop
+// Responsive resize handler for canvas and starfield
 function windowResized() {
-  const h = floor(window.innerHeight * 0.6);
-  resizeCanvas(window.innerWidth, h);
+  canvx = windowWidth;
+  canvy = Math.floor(windowHeight * 0.6);
+  resizeCanvas(canvx, canvy);
   centerX = width / 2;
   centerY = height / 2;
+  // Regenerate starfield to match new size
+  starfieldW = windowWidth * 3;
+  starfieldH = Math.floor(windowHeight * 0.6) * 3;
+  starfield = createGraphics(starfieldW, starfieldH);
+  starfield.background(10, 12, 30);
+  for (let i = 0; i < 800; i++) {
+    let x = random(starfield.width);
+    let y = random(starfield.height);
+    let r = random(0.5, 2.2);
+    let b = random(180, 255);
+    let a = random(120, 255);
+    starfield.noStroke();
+    starfield.fill(b, b, 255, a);
+    starfield.ellipse(x, y, r, r);
+    if (random() < 0.08) {
+      let c = color(random(180,255), random(180,255), random(200,255), a);
+      starfield.fill(c);
+      starfield.ellipse(x, y, r * 1.2, r * 1.2);
+    }
+  }
+  updateZoomMin();
 }
 
 // spawn a small debris explosion at position
