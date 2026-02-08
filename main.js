@@ -1,9 +1,8 @@
 let starfield;
-// Make the starfield much larger than the canvas to allow for zooming out
-let starfieldW = innerWidth * 3;
-let starfieldH = (innerHeight / 2 + innerHeight * 0.1) * 3;
-let canvx = innerWidth;
-let canvy = innerHeight / 2 + innerHeight * 0.1;
+let starfieldW;
+let starfieldH;
+let canvx;
+let canvy;
 // disable grain background - we'll use planets + satellites instead
 let max_speed=3;
 let friction = -0.04;
