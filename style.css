@@ -1,13 +1,5 @@
-@media (max-width: 800px) {
-  /* #top {
-    width: 100vw;
-    height: 50vh;
-    padding: 0;
-    margin: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-  } */
+/* @media (max-width: 800px) {
+ 
   .buttons {
     display: flex;
     position: fixed;
@@ -15,13 +7,11 @@
     left: 0;
     flex-direction: column;
     align-items: flex-start;
-    padding-top: 16px;
-    padding-left: 12px;
     z-index: 10;
   }
   .buttons .button {
-    margin: 16px 0;
-    width: 140px;
+    margin: 0px 0;
+    max-width: 30vw;
     text-align: left;
   }
   canvas {
@@ -34,44 +24,48 @@
   .content {
     padding: 8px;
     max-width: 100vw;
-    font-size: 16px;
+    font-size: 3px;
     margin: 4px auto;
   }
   p {
     font-size: 16px;
-    margin-bottom: 16px;
+    margin-bottom: 0px;
   }
-}
+} */
 body{
     margin:0px;
     padding:0px;
     overflow: hidden; /* Hide scrollbars */
+    font-size: clamp(14px, 2.5vw, 22px);
 }
 
 .buttons {
-    position: absolute;
-    top:25%;
-    margin-top: auto; /* adjust this value as needed */
-    display: flex;
-    float:left;
-    justify-content: center;
-    background-color: transparent;
-    width: 100%;
-    
-  }
-  .buttons .button {
+  display: flex;
+  position: fixed;
+  top: 0;
+  left: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  padding-left: 12px;
+  z-index: 10;
+}
+
+.buttons .button {
     text-decoration: none;
-    padding: 10px 20px;
-    margin: 0 5px;
-    font-size: 20px;
+    padding: 8px 10px;
+    font-size: clamp(14px, 2.5vw, 22px);
     font-weight: bold;
     text-transform: uppercase;
     border: none;
     border-radius: 25px;
     cursor: pointer;
     transition: background-color 0.5s, color 0.5s;
-    
-  }
+  margin: 2vh 0;
+  width: 140px;
+  text-align: left;
+  
+}
+
   .red-button {
     background-color: #ff5858;
     color: white;
@@ -97,45 +91,64 @@ body{
 
 
    .content {
-      padding: 5vw;
+      padding: 1vh 2vw;
       max-width: 100%;
       margin: 10px auto;
-      font-size: 18px;
+      font-size: clamp(5px, 2.2vw, 20px);
       line-height: 1.5;
       letter-spacing: 0.05em;
    }
+    p {
+    font-size: clamp(5px, 2.2vw, 20px);
+
+  }
 
 /* Responsive button group pinned to top left */
-.buttons {
-  display: flex;
-  position: fixed;
-  top: 0;
-  left: 0;
-  flex-direction: column;
-  align-items: flex-start;
-  padding-top: 16px;
-  padding-left: 12px;
-  z-index: 10;
-}
-.buttons .button {
-  margin: 16px 0;
-  width: 140px;
-  text-align: left;
-}
 
-/* @media (max-width: 800px) {
+
+
+
+
+
+
+@media (max-width: 800px) {
+ 
   .buttons {
-    width: auto;
-    padding-top: 16px;
-    padding-left: 12px;
+    display: flex;
+    position: fixed;
+    top: 0;
+    left: 0;
+    flex-direction: column;
+    align-items: flex-start;
+    z-index: 10;
   }
   .buttons .button {
-    width: 140px;
-    margin: 16px 0;
+    margin: 1vh 0;
+    max-width: 30vw;
     text-align: left;
   }
-} */
-
-
-
+  canvas {
+    width: 100vw !important;
+    max-height: 50vh !important;
+    max-width: 100vw !important;
+    display: block;
+    margin: 0 auto;
+  }
+  .content {
+    padding: 4vw;
+    max-width: 100vw;
+    font-size: clamp(15px, 2.2vw, 20px);
+    margin: 4px auto;
+  }
+  p {
+    font-size: clamp(13px, 2.2vw, 20px);
+    margin-bottom: 0px;
+  }
+}
+body{
+    margin:0px;
+    padding:0px;
+    overflow: hidden; /* Hide scrollbars */
+    font-size: clamp(14px, 2.5vw, 22px);
+}
 

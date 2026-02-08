@@ -281,7 +281,14 @@ function mousePressed() {
   return;
 }
 
-
+function touchStarted() {
+  // Convert touch coordinates to world coordinates
+  let wx = (touchX - width / 2) / zoom + width / 2;
+  let wy = (touchY - height / 2) / zoom + height / 2;
+  spawnSatelliteAt(wx, wy);
+  // Prevent default scrolling behavior
+  return false;
+}
 
 // Responsive resize handler for canvas and starfield
 function windowResized() {
