@@ -33,7 +33,12 @@ let satelliteDeathBehavior = 'debris';
 function setup() {
   // Responsive canvas sizing for mobile/desktop
   canvx = windowWidth;
-  canvy = Math.floor(windowHeight * 0.6);
+  if (windowHeight > windowWidth){canvy = Math.floor(windowHeight * 0.4);
+  }
+  else{
+    canvy = Math.floor(windowHeight * 0.6);
+  }
+  
   let canvas = createCanvas(canvx, canvy);
   canvas.parent('top');
   canvas.elt.addEventListener('contextmenu', function(e) { e.preventDefault(); });
