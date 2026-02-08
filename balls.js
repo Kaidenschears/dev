@@ -1,9 +1,9 @@
 let starfield;
 // Make the starfield much larger than the canvas to allow for zooming out
-let starfieldW = innerWidth * 3;
-let starfieldH = (innerHeight / 2 + innerHeight * 0.1) * 3;
-let canvx = innerWidth;
-let canvy = innerHeight / 2 + innerHeight * 0.1;
+let starfieldW = windowWidth * 3;
+let starfieldH = (windowHeight * 0.7) * 3;
+let canvx = windowWidth;
+let canvy = windowHeight * 0.7;
 // disable grain background - we'll use planets + satellites instead
 let max_speed=3;
 let friction = -0.1;
@@ -84,7 +84,6 @@ class Explosion {
     pop();
   }
 }
-function setup() {
   let canvas = createCanvas(canvx, canvy);
   canvas.parent('top');
   // Prevent right-click context menu on the canvas
@@ -831,15 +830,14 @@ function mouseWheel(event) {
 }
 
 // Update starfield and zoom min on resize
-function windowResized() {
-  canvx = window.innerWidth;
-  canvy = Math.floor(window.innerHeight * 0.6);
+  canvx = windowWidth;
+  canvy = windowHeight * 0.7;
   resizeCanvas(canvx, canvy);
   centerX = width / 2;
   centerY = height / 2;
   // Regenerate starfield to match new size
-  starfieldW = window.innerWidth * 3;
-  starfieldH = (window.innerHeight / 2 + window.innerHeight * 0.1) * 3;
+  starfieldW = windowWidth * 3;
+  starfieldH = (windowHeight * 0.7) * 3;
   starfield = createGraphics(starfieldW, starfieldH);
   starfield.background(10, 12, 30);
   for (let i = 0; i < 800; i++) {
