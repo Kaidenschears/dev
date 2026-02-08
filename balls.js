@@ -1,14 +1,12 @@
-let canvx=innerWidth;
-let canvy=innerHeight/2+innerHeight*.1;
+let starfield;
+// Make the starfield much larger than the canvas to allow for zooming out
+let starfieldW = innerWidth * 3;
+let starfieldH = (innerHeight / 2 + innerHeight * 0.1) * 3;
+let canvx = innerWidth;
+let canvy = innerHeight / 2 + innerHeight * 0.1;
 // disable grain background - we'll use planets + satellites instead
-let numGrains = 0;
-// collision spring (lowered a bit so gravity-driven orbits are less disturbed)
-let spring = 0.03;
 let max_speed=3;
 let friction = -0.1;
-let d=70;
-let grains=[];
-let wells = []; // rotating attractor wells
 // central gravity parameters (Option 1)
 let enableCentralGravity = true;
 let centerX = 0;
@@ -17,9 +15,6 @@ let GM = 800; // gravitational parameter (tunable) - lowered for gentler central
 let gravitySoftening = 100; // avoids singularity at r=0
 let initOrbitFactor = 1.0; // multiplier for initial tangential velocity
 let fr=60;
-// anti-bunching parameters
-let repulsionPositionFactor = 0.6; // how strongly positions are corrected when overlapping
-let repulsionVelocityFactor = 0.6; // velocity impulse applied to separate overlapping particles
 // global velocity damping to keep motion calm (0.9 - 0.999 range)
 let velocityDamping = 0.96;
 // planets & satellites
@@ -90,113 +85,34 @@ class Explosion {
   }
 }
 function setup() {
-  let canvas=createCanvas(canvx, canvy);
+  let canvas = createCanvas(canvx, canvy);
   canvas.parent('top');
-  // Prevent the browser context menu on the canvas (so right-click won't show 'Inspect')
-  // and intercept common devtools shortcuts. Note: this is a UX convenience —
-  // it cannot fully prevent a user from opening devtools (they can still use browser UI).
-  try {
-    // disable right-click context menu on the canvas element
-    canvas.elt.addEventListener('contextmenu', function(e) { e.preventDefault(); });
-    // intercept some common key combos that open devtools (F12, Ctrl+Shift+I/C, Ctrl+U)
-    window.addEventListener('keydown', function(e) {
-      const k = e.key || '';
-      if (k === 'F12' || (e.ctrlKey && e.shiftKey && (k === 'I' || k === 'i' || k === 'C' || k === 'c')) || (e.ctrlKey && (k === 'U' || k === 'u'))) {
-        e.preventDefault();
-        e.stopPropagation();
-      }
-    }, true);
-  } catch (err) {
-    // ignore if canvas.elt not available or addEventListener fails
-  }
-  // Touch support: map tap -> spawn satellite, long-press -> create planet
-  try {
-    if ('ontouchstart' in window) {
-      let touchTimer = null;
-      let tx = 0, ty = 0;
-      const longPressMs = 500;
-      const rect = () => canvas.elt.getBoundingClientRect();
-      canvas.elt.addEventListener('touchstart', (e) => {
-        if (!e.touches || e.touches.length === 0) return;
-        e.preventDefault();
-        const t = e.touches[0];
-        const r = rect();
-        tx = t.clientX - r.left;
-        ty = t.clientY - r.top;
-        touchTimer = setTimeout(() => {
-          // long-press -> create planet
-          spawnPlanetAt(tx, ty);
-          touchTimer = null;
-        }, longPressMs);
-      }, { passive: false });
-      canvas.elt.addEventListener('touchend', (e) => {
-        e.preventDefault();
-        if (touchTimer) {
-          clearTimeout(touchTimer);
-          touchTimer = null;
-          // tap -> spawn satellite
-          spawnSatelliteAt(tx, ty);
-        }
-      }, { passive: false });
-      canvas.elt.addEventListener('touchmove', (e) => {
-        if (!e.touches || e.touches.length === 0) return;
-        const t = e.touches[0];
-        const r = rect();
-        const mx = t.clientX - r.left;
-        const my = t.clientY - r.top;
-        // cancel long-press if finger moved significantly
-        if (touchTimer && (abs(mx - tx) > 10 || abs(my - ty) > 10)) {
-          clearTimeout(touchTimer);
-          touchTimer = null;
-        }
-      }, { passive: false });
-    }
-  } catch (err) {
-    // ignore if touch listener registration fails
-  }
+  // Prevent right-click context menu on the canvas
+  canvas.elt.addEventListener('contextmenu', function(e) { e.preventDefault(); });
   frameRate(fr);
-  background(80);
-  noStroke()
-  let i=0
-    while(i<numGrains){
-      let nx=random(canvx);
-      let ny=random(canvy);
-      let nw=random(d-d/2,d)
-      let set=1;
-      for (let j = 0; j < i; j++) {
-        // console.log(others[i]);
-        let dx = grains[j].x - nx;
-        let dy = grains[j].y - ny;
-        let distance = sqrt(dx * dx + dy * dy);
-        let minDist = grains[j].diameter  + nw;
-        if(distance<minDist)
-          set=0;
-      }
-      if(set==1){
-      grains[i]= new Grain(nx,ny,nw,i,grains);
-      i+=1;}
+  noStroke();
+  // Create a much larger starfield background
+  starfield = createGraphics(starfieldW, starfieldH);
+  starfield.background(10, 12, 30);
+  for (let i = 0; i < 800; i++) {
+    let x = random(starfield.width);
+    let y = random(starfield.height);
+    let r = random(0.5, 2.2);
+    let b = random(180, 255);
+    let a = random(120, 255);
+    starfield.noStroke();
+    starfield.fill(b, b, 255, a);
+    starfield.ellipse(x, y, r, r);
+    // occasional colored stars
+    if (random() < 0.08) {
+      let c = color(random(180,255), random(180,255), random(200,255), a);
+      starfield.fill(c);
+      starfield.ellipse(x, y, r * 1.2, r * 1.2);
     }
+  }
   // set central gravity center to canvas center
   centerX = width / 2;
   centerY = height / 2;
-
-  // initialize tangential velocities so particles start with orbital motion
-  if (enableCentralGravity) {
-    for (let i = 0; i < grains.length; i++) {
-      const g = grains[i];
-      const dx = g.x - centerX;
-      const dy = g.y - centerY;
-      const r = sqrt(dx * dx + dy * dy) + 0.0001;
-      // perpendicular (tangential) unit vector
-      const tx = -dy / r;
-      const ty = dx / r;
-      // target circular orbit speed v = sqrt(GM / r)
-      const v = initOrbitFactor * sqrt(GM / (r + 0.0001));
-      g.vx += tx * v;
-      g.vy += ty * v;
-    }
-  }
-
   // create rotating planets that orbit the central gravity center
   for (let i = 0; i < numPlanets; i++) {
     const orbitR = 80 + i * 90; // spread planets outward
@@ -207,7 +123,6 @@ function setup() {
     const col = [map(i, 0, numPlanets - 1, 120, 255), 180, map(i, 0, numPlanets - 1, 200, 100)];
     planets.push(new Planet(centerX, centerY, orbitR, angle, speed, size, col));
   }
-
   // create a handful of satellites orbiting random planets
   for (let i = 0; i < initialSatellites; i++) {
     const p = random(planets);
@@ -218,176 +133,22 @@ function setup() {
     const s = 4 + random(0, 3);
     satellites.push(new Satellite(p, satR, a, spd, s));
   }
-
-      
+  // Dynamically set minimum zoom so the background always covers the canvas
+  updateZoomMin();
 }
 
 
-class Grain {
-  constructor(xin, yin, din, idin, oin) {
-    this.x = xin;
-    this.y = yin;
-    this.vx = 0;
-    this.vy = 0;
-    this.diameter = din;
-    this.id = idin;
-    this.others = oin;
-  
-    this.fill=[100,200];
-    // 100, 200
-    
-    
-  }
-
-  collide() {
-    for (let i = this.id + 1; i < numGrains; i++) {
-      // console.log(others[i]);
-      let dx = this.others[i].x - this.x;
-      let dy = this.others[i].y - this.y;
-      let distance = sqrt(dx * dx + dy * dy);
-      let minDist = this.others[i].diameter / 2 + this.diameter / 2;
-      //   console.log(distance);
-      //console.log(minDist);
-      if (distance < minDist) {
-        //console.log("2");
-        let angle = atan2(dy, dx);
-        let targetX = this.x + cos(angle) * minDist;
-        let targetY = this.y + sin(angle) * minDist;
-        let ax = (targetX - this.others[i].x) * spring;
-        let ay = (targetY - this.others[i].y) * spring;
-        this.vx -= ax;
-        this.vy -= ay;
-        this.others[i].vx += ax;
-        this.others[i].vy += ay;
-        // additional short-range position correction & velocity impulse to prevent bunching
-        const overlap = (minDist - distance);
-        if (overlap > 0) {
-          const ux = dx / (distance + 0.0001); // unit vector from this -> other
-          const uy = dy / (distance + 0.0001);
-          // position correction: move each particle half the overlap (scaled)
-          const shift = overlap * repulsionPositionFactor * 0.5;
-          this.x -= ux * shift;
-          this.y -= uy * shift;
-          this.others[i].x += ux * shift;
-          this.others[i].y += uy * shift;
-          // velocity impulse away from each other
-          const vImpulse = overlap * repulsionVelocityFactor * 0.02;
-          this.vx -= ux * vImpulse;
-          this.vy -= uy * vImpulse;
-          this.others[i].vx += ux * vImpulse;
-          this.others[i].vy += uy * vImpulse;
-        }
-        if (random(100) <= 10 && (abs(this.x - mouseX) + abs(this.y - mouseY)) <= this.diameter) {
-          this.fill = [random(255), random(255)];
-        }
-    }
-    }
-  
-  }
-
-  move() {
-    // allow mouse-drag to push particles: detect mouse movement distance
-    const md = dist(mouseX, mouseY, pmouseX, pmouseY);
-    if (abs(mouseX - this.x) <= this.diameter / 2 + 3 && abs(mouseY - this.y) <= this.diameter / 2 + 3 && md > max_speed) {
-      this.vx = mouseX - pmouseX;
-      this.vy = mouseY - pmouseY;
-    }
-
-    if (this.vx < 0)
-    this.x += max(this.vx,-max_speed);
-    else
-      this.x+=min(this.vx,max_speed);
-    if(this.vy<0)
-    this.y += max(this.vy,-max_speed);
-    else
-      this.y+=min(this.vy,max_speed);
-    if (this.x + this.diameter / 2 > width) {
-      this.x = width - this.diameter / 2;
-      this.vx *= friction;
-    } else if (this.x - this.diameter / 2 < 0) {
-      this.x = this.diameter/2 ;
-      this.vx *= friction;
-    }
-    if (this.y + this.diameter / 2 > height) {
-      this.y = height - this.diameter / 2;
-      this.vy *= friction;
-    } else if (this.y - this.diameter / 2 < 0) {
-      this.y = this.diameter / 2;
-      this.vy *= friction;
-    }
-  }
-  display(){
-    fill(color(this.fill[0],this.fill[1],map(this.vx+this.vy,-max_speed,max_speed,0,255,true)));
-
-    ellipse(this.x, this.y, this.diameter, this.diameter);
-  }
-}
 function draw() {
-    background(40,120);
-  // apply central gravity to all grains (toward centerX, centerY)
-  if (enableCentralGravity) {
-    for (let i = 0; i < grains.length; i++) {
-      const g = grains[i];
-      const rx = centerX - g.x;
-      const ry = centerY - g.y;
-      const r2 = rx * rx + ry * ry + 0.0001;
-      const r = sqrt(r2);
-      // softened inverse-square acceleration magnitude
-      const aMag = GM / (r2 + gravitySoftening);
-      const ax = (rx / r) * aMag;
-      const ay = (ry / r) * aMag;
-      g.vx += ax;
-      g.vy += ay;
-    }
-  }
-  // apply global damping to grain velocities to keep motion calm
-  if (grains.length > 0) {
-    for (let i = 0; i < grains.length; i++) {
-      grains[i].vx *= velocityDamping;
-      grains[i].vy *= velocityDamping;
-    }
-  }
-  // update wells (rotating attractors) and apply orbit-friendly forces
-  for (let i = wells.length - 1; i >= 0; i--) {
-    const w = wells[i];
-    w.update();
-    // compute current attractor point that rotates around the well center
-    const ax = w.x + cos(w.angle) * w.rotRadius;
-    const ay = w.y + sin(w.angle) * w.rotRadius;
-
-    // apply softened inverse-square attraction, but give an initial tangential kick
-    grains.forEach(g => {
-      const dx = ax - g.x;
-      const dy = ay - g.y;
-      const distSq = dx * dx + dy * dy;
-      const distVal = sqrt(distSq) + 0.0001;
-      if (distVal > w.radius) return; // out of influence
-
-      // inward (centripetal) acceleration (softened)
-      const soft = 300; // softening factor
-      const aMag = w.strength / (distSq + soft);
-      const ux = dx / distVal;
-      const uy = dy / distVal;
-      // perpendicular unit vector for tangential direction
-      const tx = -uy;
-      const ty = ux;
-
-      // apply a small continuous inward pull
-      g.vx += ux * aMag;
-      g.vy += uy * aMag;
-
-      // apply a small tangential boost to encourage orbiting (decays with distance)
-        const tangentialBoost = w.tangential * (1.0 / (1 + distVal / 100)); // reduced initial impulse
-      g.vx += tx * tangentialBoost;
-      g.vy += ty * tangentialBoost;
-    });
-
-    // remove well when expired
-    if (w.lifetime <= 0) wells.splice(i, 1);
-  }
-
-  // render wells (rings and rotating dense point)
-  wells.forEach(w => w.render());
+  push();
+  // Center zoom on canvas
+  translate(width / 2, height / 2);
+  scale(zoom);
+  translate(-width / 2, -height / 2);
+  // Calculate the visible region of the starfield so it always covers the canvas
+  let sx = (starfield.width - width) / 2;
+  let sy = (starfield.height - height) / 2;
+  image(starfield, -sx, -sy, starfield.width, starfield.height);
+  // ...existing code...
 
   // update and render planets and satellites behind grains
   planets.forEach(p => p.update());
@@ -426,27 +187,27 @@ function draw() {
     // check collision against all planets (not just parent) so cross-impacts count
     for (let j = 0; j < planets.length; j++) {
       const p = planets[j];
-  // use visual radius (baseSize) for collision checks so planets don't shrink visually
-  const pDisplay = max(4, p.baseSize);
+      // use visual radius (baseSize) for collision checks so planets don't shrink visually
+      const pDisplay = max(4, p.baseSize);
       const pd = dist(s.x, s.y, p.x, p.y);
       if (pd <= pDisplay + s.size * 0.5) {
         // erosion amount: cap per-impact erosion so it takes at least `requiredHits` impacts
         const maxPerHit = (p.initMass || (p.baseSize * 10)) / max(1, requiredHits);
         const erosionAmount = min(s.size * 8, maxPerHit);
         p.erode(erosionAmount);
-  // increment impact counter for destruction gating
-  p.hitCount = (p.hitCount || 0) + 1;
+        // increment impact counter for destruction gating
+        p.hitCount = (p.hitCount || 0) + 1;
         // add a crater at impact angle
         const impactAngle = atan2(s.y - p.y, s.x - p.x);
-  // compute impact speed (approx linear speed = angularVel * radius)
-  const speedFactorForSat = max(0.06, (s.planet && s.planet.initMass > 0) ? (s.planet.mass / s.planet.initMass) : 1);
-  const angVel = abs(s.baseAngularSpeed * speedFactorForSat);
-  const impactSpeed = angVel * s.orbitRadius; // pixels/frame approx
-  // crater size reflects particle speed and size
-  const craterSize = max(4, s.size * 2, impactSpeed * 30);
-  // depth scales with impact speed (but bounded)
-  const depth = min(1, impactSpeed / 6);
-        p.addCrater(impactAngle, craterSize, depth);
+        // compute true impact speed (distance moved per frame)
+        const prevX = s.x - (cos(s.angle) * s.orbitRadius - cos(s.angle - s.baseAngularSpeed) * s.orbitRadius);
+        const prevY = s.y - (sin(s.angle) * s.orbitRadius - sin(s.angle - s.baseAngularSpeed) * s.orbitRadius);
+        const impactSpeed = dist(s.x, s.y, prevX, prevY);
+        // crater size reflects particle speed and size
+        const craterSize = max(4, s.size * 2, impactSpeed * 30);
+        // depth scales with impact speed (but bounded)
+        const depth = min(1, impactSpeed / 6);
+        p.addCrater(impactAngle, craterSize, depth, s.x, s.y);
         // remove satellite on impact
         satellites.splice(i, 1);
         removed = true;
@@ -513,12 +274,7 @@ function draw() {
     if (ex.isDone()) explosions.splice(ei, 1);
   }
 
-  // update and display grains
-  grains.forEach(grain =>{
-                grain.display();
-                grain.move();
-                grain.collide();});
-  
+  // ...no grains code...
 }
 
 // spawn a rotating gravity well on mouse press inside canvas
@@ -559,14 +315,19 @@ function mousePressed() {
   // if click is outside canvas ignore
   if (mouseX < 0 || mouseY < 0 || mouseX > width || mouseY > height) return;
 
+  // Convert screen (mouse) coordinates to world coordinates under zoom/pan
+  // Undo the draw() transforms: translate(width/2, height/2), scale(zoom), translate(-width/2, -height/2)
+  let wx = (mouseX - width / 2) / zoom + width / 2;
+  let wy = (mouseY - height / 2) / zoom + height / 2;
+
   // RIGHT click: create planet
   if (mouseButton === RIGHT) {
-    spawnPlanetAt(mouseX, mouseY);
+    spawnPlanetAt(wx, wy);
     return;
   }
   // LEFT click: spawn satellite
   if (mouseButton === LEFT) {
-    spawnSatelliteAt(mouseX, mouseY);
+    spawnSatelliteAt(wx, wy);
     return;
   }
   return;
@@ -620,10 +381,13 @@ class Planet {
     this.color = color;
     this.x = this.cx + cos(this.angle) * this.orbitRadius;
     this.y = this.cy + sin(this.angle) * this.orbitRadius;
+    // velocity for planet-planet gravity interactions
+    this.vx = 0;
+    this.vy = 0;
     // mass controls how strongly the planet influences satellites; initialize proportional to size
   this.initMass = this.baseSize * 10;
   this.mass = this.initMass;
-  this.minMass = 0; // allow full erosion
+  this.minMass = this.initMass * 0.8; // keep 80% mass after explosion (prevents satellites from being locked)
   this.destroyed = false;
     this.hitCount = 0; // number of satellite impacts received
     this._skipExplosion = false; // internal flag: if true, removal loop won't spawn a duplicate explosion
@@ -765,9 +529,30 @@ class Planet {
     }
   }
   update() {
+    // Apply gravity from other planets
+    for (const other of planets) {
+      if (!other || other === this || other.destroyed) continue;
+      const dx = other.x - this.x;
+      const dy = other.y - this.y;
+      const dist2 = dx * dx + dy * dy + 1e-6;
+      const dist = sqrt(dist2);
+      // acceleration from other planet's mass
+      const aMag = (other.mass) / (dist2 + gravitySoftening);
+      this.vx += (dx / dist) * aMag * 0.001; // small scaling to keep orbits stable
+      this.vy += (dy / dist) * aMag * 0.001;
+    }
+    
+    // Angular orbit motion (original system, still primary)
     this.angle += this.angularSpeed;
-    this.x = this.cx + cos(this.angle) * this.orbitRadius;
-    this.y = this.cy + sin(this.angle) * this.orbitRadius;
+    const baseX = this.cx + cos(this.angle) * this.orbitRadius;
+    const baseY = this.cy + sin(this.angle) * this.orbitRadius;
+    
+    // Apply velocity perturbations on top of angular orbit
+    this.vx *= 0.98; // damping
+    this.vy *= 0.98;
+    this.x = baseX + this.vx;
+    this.y = baseY + this.vy;
+    
     // update spin
     this.spinAngle = (this.spinAngle + this.spinSpeed) % TWO_PI;
   }
@@ -799,23 +584,40 @@ class Planet {
   erode(amount) {
     this.mass = max(this.minMass, this.mass - amount);
     // do not auto-mark destroyed here; destruction requires both low mass and enough hits
-    if (this.mass <= this.minMass) {
-      this.mass = 0;
-    }
   }
   // add a crater at world-space angle (relative to planet center), size in pixels, depth 0..1
-  addCrater(angle, size, depth = 1.0) {
+  addCrater(angle, size, depth = 1.0, impactX = null, impactY = null) {
     // Merge by physical proximity on the planet surface (world-space) instead of
     // only angular proximity. This prevents an existing crater from being moved
     // to a new angle when nearby impacts occur. Craters accumulate until the
     // planet is destroyed (no forced eviction).
     const displaySize = max(4, this.baseSize);
     const radius = displaySize; // visual radius used for crater placement
-    // compute world-space center of the new crater so we can compare distances
     const craterRadius = size * 0.5;
-    const centerDist = max(0, radius - craterRadius - 2);
-    const nx = this.x + cos(angle) * centerDist;
-    const ny = this.y + sin(angle) * centerDist;
+    // If impactX/Y provided, use that for the impact point, else use angle
+    let nx, ny, localAngle;
+    if (impactX !== null && impactY !== null) {
+      // Vector from planet center to impact
+      let dx = impactX - this.x;
+      let dy = impactY - this.y;
+      let distToCenter = sqrt(dx * dx + dy * dy);
+      // Clamp so crater is always inside the planet
+      let maxDist = max(0, radius - craterRadius - 2);
+      if (distToCenter > maxDist) {
+        dx *= maxDist / distToCenter;
+        dy *= maxDist / distToCenter;
+        distToCenter = maxDist;
+      }
+      nx = this.x + dx;
+      ny = this.y + dy;
+      localAngle = (atan2(dy, dx) - this.spinAngle + TWO_PI) % TWO_PI;
+    } else {
+      // Fallback: use angle
+      const centerDist = max(0, radius - craterRadius - 2);
+      nx = this.x + cos(angle) * centerDist;
+      ny = this.y + sin(angle) * centerDist;
+      localAngle = ((angle - this.spinAngle) % TWO_PI + TWO_PI) % TWO_PI;
+    }
 
     let merged = false;
     for (let i = 0; i < this.craters.length; i++) {
@@ -827,15 +629,15 @@ class Planet {
       const cx = this.x + cos(cWorldAngle) * cCenterDist;
       const cy = this.y + sin(cWorldAngle) * cCenterDist;
       const d = dist(nx, ny, cx, cy);
-    // merge tuning that scales with planet visual size so small planets
-    // don't end up absorbing most strikes.
-    const refRadius = 40; // reference planet radius for scaling
-    const sizeScale = constrain(radius / refRadius, 0.25, 2.0);
-    // very small distance to treat hits as exactly the same spot (scaled)
-    const exactMergeDist = max(0.5, 1 * sizeScale);
-    // general merge threshold scaled down for smaller planets to favor new craters
-    const mergeThresh = max(1.2, (craterRadius + cRadius) * 0.12 * sizeScale);
-    if (d <= exactMergeDist) {
+      // merge tuning that scales with planet visual size so small planets
+      // don't end up absorbing most strikes.
+      const refRadius = 40; // reference planet radius for scaling
+      const sizeScale = constrain(radius / refRadius, 0.25, 2.0);
+      // very small distance to treat hits as exactly the same spot (scaled)
+      const exactMergeDist = max(0.5, 1 * sizeScale);
+      // general merge threshold scaled down for smaller planets to favor new craters
+      const mergeThresh = max(1.2, (craterRadius + cRadius) * 0.12 * sizeScale);
+      if (d <= exactMergeDist) {
         // very close hit: enlarge existing crater regardless of size ratio
         c.size = min(displaySize * 1.6, c.size + size * 0.9);
         c.depth = min(1, c.depth + depth * 0.7);
@@ -858,8 +660,7 @@ class Planet {
     if (!merged) {
       // store the crater's local angle (relative to the planet's rotation at creation)
       // so the crater will rotate visually with the planet: local = worldAngle - spinAngle
-      const local = ((angle - this.spinAngle) % TWO_PI + TWO_PI) % TWO_PI;
-      this.craters.push({ localAngle: local, size, depth });
+      this.craters.push({ localAngle, size, depth });
       // bake into texture so the crater is permanent visually
       this._bakeCraters();
     } else {
@@ -941,11 +742,49 @@ class Satellite {
     this.x = this.planet.x + cos(this.angle) * rModified;
     this.y = this.planet.y + sin(this.angle) * rModified;
   }
+  // Store previous positions for the tail
+  tailLength = 16;
+  tailAlpha = 90;
+  tailColor = [180, 220, 255]; // (kept for tail, can adjust if desired)
+  tail = [];
+
   render() {
+    // Add current position to the tail
+    this.tail = this.tail || [];
+    this.tail.push({x: this.x, y: this.y});
+    if (this.tail.length > this.tailLength) this.tail.shift();
+
+    // Draw the tail
+    push();
+    noFill();
+    for (let i = 1; i < this.tail.length; i++) {
+      const prev = this.tail[i - 1];
+      const curr = this.tail[i];
+      const alpha = map(i, 1, this.tail.length, 0, this.tailAlpha);
+      stroke(this.tailColor[0], this.tailColor[1], this.tailColor[2], alpha);
+      strokeWeight(map(i, 1, this.tail.length, 1, this.size * 0.7));
+      line(prev.x, prev.y, curr.x, curr.y);
+    }
+    pop();
+
+    // Draw the satellite itself
     push();
     noStroke();
-    fill(255, 220);
-    ellipse(this.x, this.y, this.size);
+    // Grey, space rock color
+    fill(120, 120, 130, 230);
+    // Draw an irregular, organic rocky shape using a noisy polygon
+    let points = 9;
+    let rBase = this.size * 0.5;
+    let t = frameCount * 0.01 + this.angle; // animate for subtle motion
+    beginShape();
+    for (let i = 0; i < points; i++) {
+      let a = (TWO_PI / points) * i;
+      // Use per-vertex noise for organic shape
+      let n = noise(this.x * 0.03 + cos(a + t) * 2, this.y * 0.03 + sin(a + t) * 2, i * 0.2 + t);
+      let r = rBase * map(n, 0, 1, 0.7, 1.25);
+      vertex(this.x + cos(a) * r, this.y + sin(a) * r);
+    }
+    endShape(CLOSE);
     pop();
   }
 }
@@ -964,4 +803,59 @@ function spawnDebrisAt(x, y, col, count = 8) {
   const ex = new Explosion(x, y, col);
   while (ex.particles.length > count) ex.particles.pop();
   explosions.push(ex);
+}
+
+
+let zoom = 1.0;
+let zoomMin = 0.3;
+let zoomMax = 2.5;
+
+function updateZoomMin() {
+  // Ensure the background always covers the canvas
+  // The minimum zoom is when the canvas fits inside the starfield
+  zoomMin = Math.max(width / starfieldW, height / starfieldH);
+  // Clamp zoom if needed
+  zoom = constrain(zoom, zoomMin, zoomMax);
+}
+
+function mouseWheel(event) {
+  // Zoom in/out with scroll wheel
+  let zoomFactor = 1.05;
+  if (event.delta > 0) {
+    zoom /= zoomFactor;
+  } else {
+    zoom *= zoomFactor;
+  }
+  zoom = constrain(zoom, zoomMin, zoomMax);
+  return false; // prevent page scroll
+}
+
+// Update starfield and zoom min on resize
+function windowResized() {
+  canvx = window.innerWidth;
+  canvy = Math.floor(window.innerHeight * 0.6);
+  resizeCanvas(canvx, canvy);
+  centerX = width / 2;
+  centerY = height / 2;
+  // Regenerate starfield to match new size
+  starfieldW = window.innerWidth * 3;
+  starfieldH = (window.innerHeight / 2 + window.innerHeight * 0.1) * 3;
+  starfield = createGraphics(starfieldW, starfieldH);
+  starfield.background(10, 12, 30);
+  for (let i = 0; i < 800; i++) {
+    let x = random(starfield.width);
+    let y = random(starfield.height);
+    let r = random(0.5, 2.2);
+    let b = random(180, 255);
+    let a = random(120, 255);
+    starfield.noStroke();
+    starfield.fill(b, b, 255, a);
+    starfield.ellipse(x, y, r, r);
+    if (random() < 0.08) {
+      let c = color(random(180,255), random(180,255), random(200,255), a);
+      starfield.fill(c);
+      starfield.ellipse(x, y, r * 1.2, r * 1.2);
+    }
+  }
+  updateZoomMin();
 }
